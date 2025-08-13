@@ -1,1 +1,459 @@
-# Здесь будет OpenAPI описание всех доступных эндпоинтов и моделей данных.
+openapi: 3.0.0
+info:
+  title: Bank Card Management System API
+  description: |
+    ## Система управления банковскими картами
+    
+    ### Возможности:
+    - Управление пользователями (ADMIN)
+    - Создание и блокировка карт
+    - Переводы между картами
+    - Просмотр баланса
+    
+    ### Роли:
+    - **ADMIN**: Полный доступ ко всем операциям
+    - **USER**: Только свои карты и переводы
+    
+    ### Безопасность:
+    - JWT аутентификация
+    - Шифрование данных карт
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@bankapi.example.com
+
+servers:
+  - url: http://localhost:8080/api
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: Аутентификация и регистрация
+  - name: Users
+    description: Управление пользователями (ADMIN)
+  - name: Cards
+    description: Операции с банковскими картами
+  - name: Transactions
+    description: Переводы между картами
+
+paths:
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Аутентификация пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Неверные учетные данные
+
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthRequest'
+      responses:
+        '200':
+          description: Пользователь успешно зарегистрирован
+        '400':
+          description: Некорректные данные
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Получить список пользователей (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPage'
+        '403':
+          description: Доступ запрещен
+
+    post:
+      tags: [Users]
+      summary: Создать пользователя (ADMIN)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '200':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '400':
+          description: Некорректные данные
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Получить пользователя по ID (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDTO'
+        '404':
+          description: Пользователь не найден
+
+    delete:
+      tags: [Users]
+      summary: Удалить пользователя (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '204':
+          description: Пользователь удален
+        '404':
+          description: Пользователь не найден
+
+  /cards:
+    get:
+      tags: [Cards]
+      summary: Получить свои карты (USER) или все (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/page'
+        - $ref: '#/components/parameters/size'
+      responses:
+        '200':
+          description: Список карт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardPage'
+        '403':
+          description: Доступ запрещен
+
+    post:
+      tags: [Cards]
+      summary: Создать новую карту (ADMIN)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardCreateRequest'
+      responses:
+        '200':
+          description: Карта создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDTO'
+        '400':
+          description: Некорректные данные
+
+  /cards/{id}:
+    get:
+      tags: [Cards]
+      summary: Получить карту по ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Данные карты
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardDTO'
+        '403':
+          description: Нет доступа к карте
+        '404':
+          description: Карта не найдена
+
+  /cards/{id}/block:
+    put:
+      tags: [Cards]
+      summary: Заблокировать карту (ADMIN)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Карта заблокирована
+        '404':
+          description: Карта не найдена
+
+  /cards/{id}/request-block:
+    put:
+      tags: [Cards]
+      summary: Запросить блокировку своей карты (USER)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/id'
+      responses:
+        '200':
+          description: Запрос на блокировку отправлен
+        '403':
+          description: Нет доступа к карте
+
+  /transactions/transfer:
+    post:
+      tags: [Transactions]
+      summary: Перевод между своими картами (USER)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '200':
+          description: Перевод выполнен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDTO'
+        '400':
+          description: Некорректные данные
+        '403':
+          description: Нет доступа к картам
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    page:
+      name: page
+      in: query
+      description: Номер страницы
+      required: false
+      schema:
+        type: integer
+        default: 0
+    size:
+      name: size
+      in: query
+      description: Размер страницы
+      required: false
+      schema:
+        type: integer
+        default: 20
+    id:
+      name: id
+      in: path
+      description: ID ресурса
+      required: true
+      schema:
+        type: integer
+
+  schemas:
+    AuthRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "user1"
+        password:
+          type: string
+          example: "password123"
+          format: password
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        username:
+          type: string
+          example: "user1"
+        role:
+          type: string
+          example: "USER"
+
+    UserDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "admin"
+        role:
+          type: string
+          example: "ADMIN"
+
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          example: "newuser"
+        password:
+          type: string
+          example: "password123"
+          format: password
+        role:
+          type: string
+          example: "USER"
+
+    UserPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserDTO'
+        totalPages:
+          type: integer
+          example: 1
+        totalElements:
+          type: integer
+          example: 1
+
+    CardDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        maskedNumber:
+          type: string
+          example: "**** **** **** 1234"
+        expiryDate:
+          type: string
+          format: date
+          example: "2025-12-31"
+        status:
+          type: string
+          enum: [ACTIVE, BLOCKED, EXPIRED]
+          example: "ACTIVE"
+        balance:
+          type: number
+          format: double
+          example: 1500.00
+        userId:
+          type: integer
+          example: 1
+
+    CardCreateRequest:
+      type: object
+      required:
+        - cardNumber
+        - expiryDate
+        - userId
+      properties:
+        cardNumber:
+          type: string
+          pattern: '^\d{16}$'
+          example: "1234567812345678"
+        expiryDate:
+          type: string
+          pattern: '^\d{2}/\d{2}$'
+          example: "12/25"
+        userId:
+          type: integer
+          example: 1
+
+    CardPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardDTO'
+        totalPages:
+          type: integer
+          example: 1
+        totalElements:
+          type: integer
+          example: 1
+
+    TransferRequest:
+      type: object
+      required:
+        - fromCardId
+        - toCardId
+        - amount
+      properties:
+        fromCardId:
+          type: integer
+          example: 1
+        toCardId:
+          type: integer
+          example: 2
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          example: 100.00
+
+    TransactionDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        amount:
+          type: number
+          format: double
+          example: 100.00
+        timestamp:
+          type: string
+          format: date-time
+          example: "2023-10-20T14:30:00"
+        senderCardId:
+          type: integer
+          example: 1
+        receiverCardId:
+          type: integer
+          example: 2
